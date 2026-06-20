@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/mdns"
@@ -42,6 +43,11 @@ func main() {
 	entriesCh := make(chan *mdns.ServiceEntry, 10)
 	go func() {
 		for entry := range entriesCh {
+
+			if !strings.Contains(entry.Name, serviceName) {
+				continue
+			}
+
 			fmt.Printf("%s (%s:%d)\n", entry.Name, entry.AddrV4[0], entry.Port)
 			// TODO handle entry
 		}
