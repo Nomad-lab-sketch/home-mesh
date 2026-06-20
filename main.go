@@ -3,30 +3,21 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"time"
 
 	"github.com/hashicorp/mdns"
 )
 
-const serviceName = "_foobar._tcp"
+const serviceName = "_homemesh._tcp"
 
 func main() {
-	go func() {
-		http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-			w.Write([]byte("Hello"))
-		})
-
-		log.Println("HTTP server on :8000")
-		log.Fatal(http.ListenAndServe(":8000", nil))
-	}()
-
 	host, err := os.Hostname()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	info := []string{"My awesome service"}
+	info := []string{"agent"}
 	service, err := mdns.NewMDNSService(
 		host,
 		serviceName,
@@ -48,5 +39,16 @@ func main() {
 
 	fmt.Println("mDNS service published")
 
-	select {}
+	entriesCh := make(chan *mdns.ServiceEntry, 10)
+	go func() {
+		for entry := range entriesCh {
+			fmt.Printf("%s (%s:%d)\n", entry.Name, entry.AddrV4[0], entry.Port)
+			// TODO handle entry
+		}
+	}()
+
+	for {
+		mdns.Lookup(serviceName, entriesCh)
+		time.Sleep(10 * time.Second)
+	}
 }
