@@ -4,23 +4,21 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/mdns"
 )
 
-const serviceName = "_homemesh._tcp"
+const serviceName = "_home-mesh._tcp"
 
 func main() {
-	host, err := os.Hostname()
-	if err != nil {
-		log.Fatal(err)
-	}
+	host, _ := os.Hostname()
+	name := fmt.Sprintf("%s-%d", host, os.Getpid())
 
-	info := []string{"agent"}
+	info := []string{"this is golang agent"}
+
 	service, err := mdns.NewMDNSService(
-		host,
+		name,
 		serviceName,
 		"",
 		"",
@@ -38,23 +36,34 @@ func main() {
 	}
 	defer server.Shutdown()
 
-	fmt.Println("mDNS service published")
+	fmt.Println("Published as:", name)
 
-	entriesCh := make(chan *mdns.ServiceEntry, 10)
+	entriesCh := make(chan *mdns.ServiceEntry, 16)
+
+	entryName := name + "." + serviceName + ".local."
+
 	go func() {
 		for entry := range entriesCh {
 
-			if !strings.Contains(entry.Name, serviceName) {
-				continue
+			if entry.Name == entryName {
+				continue // игнорируем себя
 			}
 
-			fmt.Printf("%s (%s:%d)\n", entry.Name, entry.AddrV4[0], entry.Port)
-			// TODO handle entry
+			fmt.Printf(
+				"Found: %s %v %d\n",
+				entry.Name,
+				entry.AddrV4,
+				entry.Port,
+			)
 		}
 	}()
 
-	for {
-		mdns.Lookup(serviceName, entriesCh)
-		time.Sleep(10 * time.Second)
-	}
+	go func() {
+		for {
+			mdns.Lookup(serviceName, entriesCh)
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	select {}
 }
