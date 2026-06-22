@@ -30,7 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server, err := mdns.NewServer(&mdns.Config{Zone: service})
+	server, err := mdns.NewServer(&mdns.Config{Zone: service, Iface: nil})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,12 +40,10 @@ func main() {
 
 	entriesCh := make(chan *mdns.ServiceEntry, 16)
 
-	entryName := name + "." + serviceName + ".local."
-
 	go func() {
 		for entry := range entriesCh {
 
-			if entry.Name == entryName {
+			if entry.Name == name+"."+serviceName+".local." {
 				continue // игнорируем себя
 			}
 
@@ -59,9 +57,10 @@ func main() {
 	}()
 
 	go func() {
-		for {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
 			mdns.Lookup(serviceName, entriesCh)
-			time.Sleep(10 * time.Second)
 		}
 	}()
 
